@@ -14,10 +14,10 @@ function initPeopleTracker(mapboxMap) {
   // Load initial people locations
   loadPeopleLocations();
   
-  // Update people locations every 3 seconds (adjust as needed)
+  // Update people locations every 4 seconds (adjust as needed)
   updateInterval = setInterval(() => {
     loadPeopleLocations();
-  }, 3000);
+  }, 4000);
 }
 
 /**
