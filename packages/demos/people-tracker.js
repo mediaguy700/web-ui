@@ -73,6 +73,14 @@ async function fetchPeopleLocations() {
     console.log('Processed people array:', peopleArray);
     console.log('Number of people found:', peopleArray.length);
     
+    // Output full API response for debugging
+    console.log('=== FULL API RESPONSE ===');
+    console.log(JSON.stringify(data, null, 2));
+    console.log('=== END API RESPONSE ===');
+    
+    // Also display in a visible area on the page for easy viewing
+    displayApiResponse(data, peopleArray);
+    
     return peopleArray;
   } catch (error) {
     console.error('Error fetching people locations:', error);
@@ -252,6 +260,63 @@ function clearPeopleMarkers() {
 }
 
 /**
+ * Display API response on the page for debugging
+ * @param {object} rawResponse - Raw API response
+ * @param {Array} processedData - Processed people array
+ */
+function displayApiResponse(rawResponse, processedData) {
+  // Remove existing display if any
+  let displayDiv = document.getElementById('api-response-display');
+  if (!displayDiv) {
+    displayDiv = document.createElement('div');
+    displayDiv.id = 'api-response-display';
+    displayDiv.style.cssText = `
+      position: fixed;
+      bottom: 10px;
+      right: 10px;
+      width: 400px;
+      max-height: 300px;
+      background: white;
+      border: 2px solid #4285f4;
+      border-radius: 8px;
+      padding: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      z-index: 10000;
+      font-family: monospace;
+      font-size: 11px;
+      overflow-y: auto;
+      display: none;
+    `;
+    
+    const header = document.createElement('div');
+    header.style.cssText = 'font-weight: bold; margin-bottom: 8px; color: #4285f4; cursor: pointer;';
+    header.textContent = 'API Response (click to toggle)';
+    header.onclick = () => {
+      displayDiv.style.display = displayDiv.style.display === 'none' ? 'block' : 'none';
+    };
+    displayDiv.appendChild(header);
+    
+    const content = document.createElement('pre');
+    content.id = 'api-response-content';
+    content.style.cssText = 'margin: 0; white-space: pre-wrap; word-wrap: break-word;';
+    displayDiv.appendChild(content);
+    
+    document.body.appendChild(displayDiv);
+  }
+  
+  const content = document.getElementById('api-response-content');
+  const responseInfo = {
+    timestamp: new Date().toLocaleTimeString(),
+    rawResponse: rawResponse,
+    processedData: processedData,
+    count: processedData ? processedData.length : 0
+  };
+  
+  content.textContent = JSON.stringify(responseInfo, null, 2);
+  displayDiv.style.display = 'block';
+}
+
+/**
  * Stop tracking people (cleanup)
  */
 function stopPeopleTracker() {
@@ -260,6 +325,12 @@ function stopPeopleTracker() {
     updateInterval = null;
   }
   clearPeopleMarkers();
+  
+  // Remove API response display
+  const displayDiv = document.getElementById('api-response-display');
+  if (displayDiv) {
+    displayDiv.remove();
+  }
 }
 
 // Export functions for use in main.js
