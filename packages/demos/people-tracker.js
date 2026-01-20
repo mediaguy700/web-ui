@@ -3,6 +3,7 @@
 let peopleMarkers = [];
 let mapboxInstance = null;
 let updateInterval = null;
+let lastApiResponse = null; // Store the last API response for display
 
 /**
  * Initialize people tracking on the map
@@ -14,19 +15,39 @@ function initPeopleTracker(mapboxMap) {
   // Load initial people locations
   loadPeopleLocations();
   
-  // Update people locations every 24 hours (86,400,000 milliseconds)
+  // Update people locations every 3 seconds (3000 milliseconds)
   updateInterval = setInterval(() => {
     loadPeopleLocations();
-  }, 24 * 60 * 60 * 1000); // 24 hours
+  }, 3000); // 3 seconds
 }
 
 /**
  * Fetch people's locations from your database/API
+ * 
+ * For GET requests:
+ * fetch('https://dxpsn25dt0.execute-api.us-east-2.amazonaws.com/Prod/items', {
+ *   method: 'GET',
+ *   headers: {
+ *     'x-api-key': '2GQCAw8pQV9eqaaKy3aY58TSOHQndXGk69MBToxk',
+ *     'Content-Type': 'application/json'
+ *   }
+ * })
+ * 
+ * For POST requests:
+ * fetch('https://dxpsn25dt0.execute-api.us-east-2.amazonaws.com/Prod/items', {
+ *   method: 'POST',
+ *   headers: {
+ *     'x-api-key': '2GQCAw8pQV9eqaaKy3aY58TSOHQndXGk69MBToxk',
+ *     'Content-Type': 'application/json'
+ *   },
+ *   body: JSON.stringify({ name: 'Item', lat: '40.7128', lng: '-74.0060' })
+ * })
  */
 async function fetchPeopleLocations() {
   let rawData = null;
   try {
     console.log('Fetching people locations from API...');
+    // For GET requests
     const response = await fetch('https://dxpsn25dt0.execute-api.us-east-2.amazonaws.com/Prod/items', {
       method: 'GET',
       headers: {
@@ -79,20 +100,30 @@ async function fetchPeopleLocations() {
     
     rawData = data;
     console.log('API Response data:', data);
+    console.log('API Response data type:', typeof data);
+    console.log('API Response is array?', Array.isArray(data));
+    console.log('API Response keys:', Object.keys(data || {}));
     
     // Ensure the response is an array
     let peopleArray = [];
     if (Array.isArray(data)) {
       peopleArray = data;
-    } else if (data.items || data.people || data.locations) {
+      console.log('Response is direct array, length:', peopleArray.length);
+    } else if (data && (data.items || data.people || data.locations)) {
       // Handle different response structures
       peopleArray = data.items || data.people || data.locations || [];
-    } else if (data.body) {
+      console.log('Extracted from data.items/people/locations, length:', peopleArray.length);
+      console.log('data.items:', data.items);
+      console.log('data.people:', data.people);
+      console.log('data.locations:', data.locations);
+    } else if (data && data.body) {
       // Handle AWS Lambda response format
       const parsedBody = typeof data.body === 'string' ? JSON.parse(data.body) : data.body;
       peopleArray = Array.isArray(parsedBody) ? parsedBody : (parsedBody.items || parsedBody.people || parsedBody.locations || []);
+      console.log('Extracted from data.body, length:', peopleArray.length);
     } else {
       console.warn('Unexpected API response format:', data);
+      console.warn('Response structure:', JSON.stringify(data, null, 2));
       // Still display the response even if format is unexpected
       if (typeof displayApiResponse === 'function') {
         displayApiResponse(data, []);
@@ -102,6 +133,11 @@ async function fetchPeopleLocations() {
     
     console.log('Processed people array:', peopleArray);
     console.log('Number of people found:', peopleArray.length);
+    
+    if (peopleArray.length === 0) {
+      console.warn('WARNING: peopleArray is empty after processing!');
+      console.warn('Raw data structure:', JSON.stringify(data, null, 2));
+    }
     
     // Normalize the data format (handle string coordinates, Status vs status, etc.)
     const normalizedArray = peopleArray.map(person => ({
@@ -121,6 +157,9 @@ async function fetchPeopleLocations() {
     console.log(JSON.stringify(data, null, 2));
     console.log('=== END API RESPONSE ===');
     
+    // Store raw response globally for use in loadPeopleLocations
+    lastApiResponse = rawData;
+    
     // Also display in a visible area on the page for easy viewing
     if (typeof displayApiResponse === 'function') {
       displayApiResponse(rawData, normalizedArray);
@@ -133,15 +172,16 @@ async function fetchPeopleLocations() {
     console.error('Error fetching people locations:', error);
     console.error('Error details:', error.message, error.stack);
     
-    // Display error in API response panel
-    const errorData = rawData || { 
+    // Store error response globally
+    lastApiResponse = rawData || { 
       error: error.message, 
       stack: error.stack,
       timestamp: new Date().toISOString()
     };
     
+    // Display error in API response panel
     if (typeof displayApiResponse === 'function') {
-      displayApiResponse(errorData, []);
+      displayApiResponse(lastApiResponse, []);
     }
     
     return [];
@@ -154,16 +194,23 @@ async function fetchPeopleLocations() {
 async function loadPeopleLocations() {
   console.log('Loading people locations...');
   let people = [];
-  let rawResponse = null;
+  let rawResponseData = null;
   
   try {
-    // Fetch people locations and capture raw response
-    const fetchResult = await fetchPeopleLocations();
-    people = Array.isArray(fetchResult) ? fetchResult : [];
+    // Fetch people locations
+    const result = await fetchPeopleLocations();
+    people = Array.isArray(result) ? result : [];
     
-    // Try to get the raw response from the last fetch
-    // We'll need to modify fetchPeopleLocations to return both
+    // Get the raw response that was stored by fetchPeopleLocations
+    rawResponseData = lastApiResponse;
+    
     console.log('Received people data:', people);
+    console.log('Raw response data:', rawResponseData);
+    
+    // Always display API response with actual data
+    if (typeof displayApiResponse === 'function') {
+      displayApiResponse(rawResponseData || { message: 'No API response data available' }, people);
+    }
   } catch (error) {
     console.error('Error in loadPeopleLocations:', error);
     // Display error in API response panel
@@ -171,13 +218,6 @@ async function loadPeopleLocations() {
       displayApiResponse({ error: error.message, stack: error.stack }, []);
     }
     return;
-  }
-  
-  // Always display API response, even if empty
-  if (typeof displayApiResponse === 'function') {
-    // We need to get the raw response - let's modify fetchPeopleLocations to return it
-    // For now, display what we have
-    displayApiResponse({ message: 'API call completed', peopleCount: people.length }, people);
   }
   
   if (!people || people.length === 0) {
@@ -194,25 +234,58 @@ async function loadPeopleLocations() {
   
   // Add new markers for each person
   let markersAdded = 0;
-  people.forEach(person => {
+  let markersSkipped = 0;
+  
+  console.log(`Processing ${people.length} people to add markers...`);
+  
+  people.forEach((person, index) => {
     try {
+      console.log(`Processing person ${index + 1}/${people.length}:`, person);
+      
+      // Validate before adding
+      if (!person.id || !person.name) {
+        console.warn(`Skipping person ${index + 1}: missing id or name`, person);
+        markersSkipped++;
+        return;
+      }
+      
+      if (typeof person.lat !== 'number' || typeof person.lng !== 'number') {
+        console.warn(`Skipping person ${index + 1}: invalid coordinates`, person);
+        markersSkipped++;
+        return;
+      }
+      
+      if (isNaN(person.lat) || isNaN(person.lng)) {
+        console.warn(`Skipping person ${index + 1}: NaN coordinates`, person);
+        markersSkipped++;
+        return;
+      }
+      
       addPersonMarker(person);
       markersAdded++;
       
       // Collect coordinates for bounds calculation
-      if (typeof person.lat === 'number' && typeof person.lng === 'number') {
-        validCoordinates.push([person.lng, person.lat]);
-      }
+      validCoordinates.push([person.lng, person.lat]);
+      console.log(`✓ Added marker for ${person.name} at (${person.lat}, ${person.lng})`);
     } catch (error) {
-      console.error('Error adding marker for person:', person, error);
+      console.error(`Error adding marker for person ${index + 1}:`, person, error);
+      console.error('Error stack:', error.stack);
+      markersSkipped++;
     }
   });
   
-  console.log(`Successfully added ${markersAdded} markers to the map`);
+  console.log(`Marker summary: ${markersAdded} added, ${markersSkipped} skipped`);
+  console.log(`Valid coordinates collected: ${validCoordinates.length}`);
   
   // Reposition map to show all people
   if (validCoordinates.length > 0 && mapboxInstance) {
+    console.log('Repositioning map to show markers...');
     repositionMapToShowPeople(validCoordinates);
+  } else {
+    console.warn('Cannot reposition map:', {
+      hasCoordinates: validCoordinates.length > 0,
+      hasMapboxInstance: !!mapboxInstance
+    });
   }
 }
 
@@ -221,35 +294,55 @@ async function loadPeopleLocations() {
  * @param {Array} coordinates - Array of [lng, lat] coordinate pairs
  */
 function repositionMapToShowPeople(coordinates) {
-  if (!mapboxInstance || !coordinates || coordinates.length === 0) {
+  if (!mapboxInstance) {
+    console.error('Cannot reposition: mapboxInstance is null');
     return;
   }
+  
+  if (!coordinates || coordinates.length === 0) {
+    console.warn('Cannot reposition: no valid coordinates provided');
+    return;
+  }
+  
+  console.log(`Repositioning map to show ${coordinates.length} locations...`);
+  console.log('Coordinates:', coordinates);
   
   try {
     if (coordinates.length === 1) {
       // Single location - center on it with a reasonable zoom
       const [lng, lat] = coordinates[0];
+      console.log(`Flying to single location: (${lat}, ${lng})`);
       mapboxInstance.flyTo({
         center: [lng, lat],
         zoom: 17,
-        duration: 1000
+        duration: 1000,
+        essential: true
       });
-      console.log('Repositioned map to single location:', lat, lng);
+      console.log('✓ Map repositioned to single location');
     } else {
       // Multiple locations - fit bounds to show all
-      const bounds = coordinates.reduce((bounds, coord) => {
-        return bounds.extend(coord);
-      }, new mapboxgl.LngLatBounds(coordinates[0], coordinates[0]));
+      console.log('Calculating bounds for multiple locations...');
+      const bounds = new mapboxgl.LngLatBounds();
+      coordinates.forEach(coord => {
+        bounds.extend(coord);
+      });
+      
+      console.log('Bounds calculated:', {
+        sw: bounds.getSouthWest().toArray(),
+        ne: bounds.getNorthEast().toArray()
+      });
       
       mapboxInstance.fitBounds(bounds, {
         padding: { top: 50, bottom: 50, left: 50, right: 50 },
         duration: 1000,
-        maxZoom: 20
+        maxZoom: 20,
+        essential: true
       });
-      console.log('Repositioned map to fit bounds for', coordinates.length, 'locations');
+      console.log(`✓ Map repositioned to fit bounds for ${coordinates.length} locations`);
     }
   } catch (error) {
     console.error('Error repositioning map:', error);
+    console.error('Error stack:', error.stack);
   }
 }
 
@@ -260,21 +353,23 @@ function repositionMapToShowPeople(coordinates) {
 function addPersonMarker(person) {
   if (!mapboxInstance) {
     console.error('Mapbox instance not available, cannot add marker');
-    return;
+    throw new Error('Mapbox instance not available');
   }
   
   // Validate required fields
-  if (!person.id || !person.name || typeof person.lat !== 'number' || typeof person.lng !== 'number') {
-    console.warn('Invalid person data, skipping marker:', person);
-    console.warn('Required fields check:', {
-      hasId: !!person.id,
-      hasName: !!person.name,
-      hasLat: typeof person.lat === 'number',
-      hasLng: typeof person.lng === 'number',
-      lat: person.lat,
-      lng: person.lng
-    });
-    return;
+  if (!person.id || !person.name) {
+    console.warn('Invalid person data: missing id or name', person);
+    throw new Error('Missing required fields: id or name');
+  }
+  
+  if (typeof person.lat !== 'number' || typeof person.lng !== 'number') {
+    console.warn('Invalid person data: invalid coordinates', person);
+    throw new Error('Invalid coordinates: must be numbers');
+  }
+  
+  if (isNaN(person.lat) || isNaN(person.lng)) {
+    console.warn('Invalid person data: NaN coordinates', person);
+    throw new Error('Coordinates are NaN');
   }
   
   console.log('Adding marker for person:', person.name, 'at', person.lat, person.lng);
@@ -316,20 +411,27 @@ function addPersonMarker(person) {
     </div>
   `;
   
-  const marker = new mapboxgl.Marker(el)
-    .setLngLat([person.lng, person.lat])
-    .setPopup(
-      new mapboxgl.Popup({ offset: 25 })
-        .setHTML(popupContent)
-    )
-    .addTo(mapboxInstance);
-  
-  // Store marker reference
-  peopleMarkers.push({
-    id: person.id,
-    marker: marker,
-    person: person
-  });
+  try {
+    const marker = new mapboxgl.Marker(el)
+      .setLngLat([person.lng, person.lat])
+      .setPopup(
+        new mapboxgl.Popup({ offset: 25 })
+          .setHTML(popupContent)
+      )
+      .addTo(mapboxInstance);
+    
+    // Store marker reference
+    peopleMarkers.push({
+      id: person.id,
+      marker: marker,
+      person: person
+    });
+    
+    console.log(`✓ Marker created and added to map for ${person.name}`);
+  } catch (error) {
+    console.error('Error creating Mapbox marker:', error);
+    throw error;
+  }
 }
 
 /**
