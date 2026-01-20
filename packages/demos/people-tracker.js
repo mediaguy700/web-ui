@@ -14,10 +14,10 @@ function initPeopleTracker(mapboxMap) {
   // Load initial people locations
   loadPeopleLocations();
   
-  // Update people locations every 4 seconds (adjust as needed)
+  // Update people locations every 24 hours (86,400,000 milliseconds)
   updateInterval = setInterval(() => {
     loadPeopleLocations();
-  }, 4000);
+  }, 24 * 60 * 60 * 1000); // 24 hours
 }
 
 /**
