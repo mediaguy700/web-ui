@@ -26,7 +26,7 @@ function initPeopleTracker(mapboxMap) {
 async function fetchPeopleLocations() {
   try {
     console.log('Fetching people locations from API...');
-    const response = await fetch('https://dxpsn25dt0.execute-api.us-east-2.amazonaws.com/Prod/');
+    const response = await fetch('https://dxpsn25dt0.execute-api.us-east-2.amazonaws.com/Prod/items');
     
     console.log('API Response status:', response.status, response.statusText);
     
@@ -73,15 +73,28 @@ async function fetchPeopleLocations() {
     console.log('Processed people array:', peopleArray);
     console.log('Number of people found:', peopleArray.length);
     
+    // Normalize the data format (handle string coordinates, Status vs status, etc.)
+    const normalizedArray = peopleArray.map(person => ({
+      id: person.id,
+      name: person.name,
+      lat: typeof person.lat === 'string' ? parseFloat(person.lat) : person.lat,
+      lng: typeof person.lng === 'string' ? parseFloat(person.lng) : person.lng,
+      floor: person.floor,
+      timestamp: person.timestamp,
+      status: person.status || person.Status || 'active'
+    }));
+    
+    console.log('Normalized people array:', normalizedArray);
+    
     // Output full API response for debugging
     console.log('=== FULL API RESPONSE ===');
     console.log(JSON.stringify(data, null, 2));
     console.log('=== END API RESPONSE ===');
     
     // Also display in a visible area on the page for easy viewing
-    displayApiResponse(data, peopleArray);
+    displayApiResponse(data, normalizedArray);
     
-    return peopleArray;
+    return normalizedArray;
   } catch (error) {
     console.error('Error fetching people locations:', error);
     console.error('Error details:', error.message, error.stack);
