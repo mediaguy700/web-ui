@@ -15,10 +15,10 @@ function initPeopleTracker(mapboxMap) {
   // Load initial people locations
   loadPeopleLocations();
   
-  // Update people locations every 3 seconds (3000 milliseconds)
+  // Update people locations every 24 hours (86400000 milliseconds)
   updateInterval = setInterval(() => {
     loadPeopleLocations();
-  }, 3000); // 3 seconds
+  }, 86400000); // 24 hours
 }
 
 /**
@@ -561,7 +561,7 @@ function displayApiResponse(rawResponse, processedData) {
       <span style="color: ${hasError ? '#d32f2f' : '#2e7d32'};">Status: ${status}</span> | 
       Items: <strong>${count}</strong> | 
       Last Update: <strong>${timestamp}</strong> | 
-      Refresh: <strong>3 seconds</strong>
+      Refresh: <strong>24 hours</strong>
     `;
   }
   
@@ -584,8 +584,8 @@ function displayApiResponse(rawResponse, processedData) {
       processedData: processedData,
       count: count
     },
-    refreshInterval: '3 seconds',
-    nextUpdate: new Date(Date.now() + 3000).toLocaleTimeString()
+    refreshInterval: '24 hours',
+    nextUpdate: new Date(Date.now() + 86400000).toLocaleTimeString()
   };
   
   content.textContent = JSON.stringify(responseInfo, null, 2);
