@@ -348,5 +348,32 @@ function setupDirections(directionsService) {
   });
 }
 
+// Setup panel toggle functionality
+function setupPanelToggle() {
+  const toggleButton = document.getElementById('panel-toggle');
+  const panel = document.getElementById('control-panel');
+  
+  if (toggleButton && panel) {
+    toggleButton.addEventListener('click', () => {
+      panel.classList.toggle('hidden');
+      // Update button text/icon based on state
+      if (panel.classList.contains('hidden')) {
+        toggleButton.textContent = '☰';
+        toggleButton.title = 'Show panel';
+      } else {
+        toggleButton.textContent = '✕';
+        toggleButton.title = 'Hide panel';
+      }
+    });
+  }
+}
+
 // Start the application
 initApp();
+
+// Setup panel toggle after DOM is ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', setupPanelToggle);
+} else {
+  setupPanelToggle();
+}
