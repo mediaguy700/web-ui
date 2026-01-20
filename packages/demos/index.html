@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
+    <meta charset="UTF-8">
   <title>MapsIndoors Tutorial</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <!-- Mapbox GL JS -->
   <script src="https://api.mapbox.com/mapbox-gl-js/v3.15.0/mapbox-gl.js"></script>
   <link href="https://api.mapbox.com/mapbox-gl-js/v3.15.0/mapbox-gl.css" rel="stylesheet" />
@@ -13,6 +13,24 @@
 </head>
 <body>
   <div id="map"></div>
+  <div class="panel">
+    <h3>Search Locations</h3>
+    <div id="search-ui">
+      <input type="text" id="search-input" placeholder="Search locations...">
+      <ul id="search-results"></ul>
+    </div>
+    <div id="directions-ui">
+      <h4>Directions</h4>
+      <input type="text" id="origin-input" placeholder="Enter origin...">
+      <ul id="origin-results"></ul>
+      <input type="text" id="destination-input" placeholder="Enter destination...">
+      <ul id="destination-results"></ul>
+      <div class="button-group">
+        <button id="show-route">Show Route</button>
+        <button id="cancel-route">Cancel</button>
+      </div>
+    </div>
+  </div>
   <script src="people-tracker.js"></script>
   <script src="main.js"></script>
 </body>
