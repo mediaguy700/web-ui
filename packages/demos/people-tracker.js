@@ -4,6 +4,7 @@ let peopleMarkers = [];
 let mapboxInstance = null;
 let updateInterval = null;
 let lastApiResponse = null; // Store the last API response for display
+let isInitialLoad = true; // Track if this is the first load
 
 /**
  * Initialize people tracking on the map
@@ -15,10 +16,10 @@ function initPeopleTracker(mapboxMap) {
   // Load initial people locations
   loadPeopleLocations();
   
-  // Update people locations every 24 hours (86400000 milliseconds)
+  // Update people locations every 5 seconds (5000 milliseconds)
   updateInterval = setInterval(() => {
     loadPeopleLocations();
-  }, 86400000); // 24 hours
+  }, 5000); // 5 seconds
 }
 
 /**
@@ -226,17 +227,24 @@ async function loadPeopleLocations() {
     return;
   }
   
-  // Remove existing markers
-  clearPeopleMarkers();
-  
   // Collect valid coordinates for bounds calculation
   const validCoordinates = [];
   
-  // Add new markers for each person
+  // Create a map of existing markers by person ID for efficient lookup
+  const existingMarkersMap = new Map();
+  peopleMarkers.forEach(item => {
+    existingMarkersMap.set(item.id, item);
+  });
+  
+  // Track which person IDs we've seen in this update
+  const seenIds = new Set();
+  
+  // Add or update markers for each person
   let markersAdded = 0;
+  let markersUpdated = 0;
   let markersSkipped = 0;
   
-  console.log(`Processing ${people.length} people to add markers...`);
+  console.log(`Processing ${people.length} people to update markers...`);
   
   people.forEach((person, index) => {
     try {
@@ -261,20 +269,52 @@ async function loadPeopleLocations() {
         return;
       }
       
-      addPersonMarker(person);
-      markersAdded++;
+      seenIds.add(person.id);
+      
+      // Check if marker already exists
+      const existingMarker = existingMarkersMap.get(person.id);
+      if (existingMarker) {
+        // Update existing marker position smoothly
+        updatePersonMarker(existingMarker, person);
+        markersUpdated++;
+        console.log(`✓ Updated marker for ${person.name} at (${person.lat}, ${person.lng})`);
+      } else {
+        // Add new marker
+        addPersonMarker(person);
+        markersAdded++;
+        console.log(`✓ Added marker for ${person.name} at (${person.lat}, ${person.lng})`);
+      }
       
       // Collect coordinates for bounds calculation
       validCoordinates.push([person.lng, person.lat]);
-      console.log(`✓ Added marker for ${person.name} at (${person.lat}, ${person.lng})`);
     } catch (error) {
-      console.error(`Error adding marker for person ${index + 1}:`, person, error);
+      console.error(`Error processing person ${index + 1}:`, person, error);
       console.error('Error stack:', error.stack);
       markersSkipped++;
     }
   });
   
-  console.log(`Marker summary: ${markersAdded} added, ${markersSkipped} skipped`);
+  // Remove markers for people that are no longer in the data
+  const markersToRemove = [];
+  peopleMarkers.forEach(item => {
+    if (!seenIds.has(item.id)) {
+      markersToRemove.push(item);
+    }
+  });
+  
+  markersToRemove.forEach(item => {
+    item.marker.remove();
+    const index = peopleMarkers.indexOf(item);
+    if (index > -1) {
+      peopleMarkers.splice(index, 1);
+    }
+  });
+  
+  if (markersToRemove.length > 0) {
+    console.log(`✓ Removed ${markersToRemove.length} markers for people no longer in data`);
+  }
+  
+  console.log(`Marker summary: ${markersAdded} added, ${markersUpdated} updated, ${markersToRemove.length} removed, ${markersSkipped} skipped`);
   console.log(`Valid coordinates collected: ${validCoordinates.length}`);
   
   // Log all names that were processed
@@ -293,15 +333,17 @@ async function loadPeopleLocations() {
     });
   }
   
-  // Reposition map to show all people
-  if (validCoordinates.length > 0 && mapboxInstance) {
-    console.log('Repositioning map to show markers...');
+  // Reposition map to show all people only on initial load
+  if (isInitialLoad && validCoordinates.length > 0 && mapboxInstance) {
+    console.log('Repositioning map to show markers (initial load)...');
     repositionMapToShowPeople(validCoordinates);
-  } else {
+    isInitialLoad = false; // Mark that initial load is complete
+  } else if (isInitialLoad) {
     console.warn('Cannot reposition map:', {
       hasCoordinates: validCoordinates.length > 0,
       hasMapboxInstance: !!mapboxInstance
     });
+    isInitialLoad = false; // Still mark as complete even if we couldn't reposition
   }
 }
 
@@ -359,6 +401,62 @@ function repositionMapToShowPeople(coordinates) {
   } catch (error) {
     console.error('Error repositioning map:', error);
     console.error('Error stack:', error.stack);
+  }
+}
+
+/**
+ * Update an existing marker's position and data smoothly
+ * @param {object} markerItem - Existing marker item from peopleMarkers array
+ * @param {object} person - Updated person object
+ */
+function updatePersonMarker(markerItem, person) {
+  if (!mapboxInstance || !markerItem || !markerItem.marker) {
+    console.error('Cannot update marker: invalid parameters');
+    return;
+  }
+  
+  // Update marker position smoothly
+  const currentLngLat = markerItem.marker.getLngLat();
+  const newLngLat = [person.lng, person.lat];
+  
+  // Only update if position changed
+  if (currentLngLat.lng !== person.lng || currentLngLat.lat !== person.lat) {
+    // Use smooth transition for position updates
+    markerItem.marker.setLngLat(newLngLat);
+  }
+  
+  // Update popup content if person data changed
+  const floorText = person.floor !== undefined && person.floor !== null ? `Floor: ${person.floor}` : 'Floor: Unknown';
+  const statusText = person.status ? `Status: ${person.status}` : '';
+  const timestampText = person.timestamp ? `Last updated: ${new Date(person.timestamp).toLocaleTimeString()}` : '';
+  
+  const popupContent = `
+    <div style="padding: 8px;">
+      <strong>${person.name || 'Unknown'}</strong><br>
+      ${floorText ? `<small>${floorText}</small><br>` : ''}
+      ${statusText ? `<small>${statusText}</small><br>` : ''}
+      ${timestampText ? `<small>${timestampText}</small>` : ''}
+    </div>
+  `;
+  
+  // Update popup if it exists
+  const popup = markerItem.marker.getPopup();
+  if (popup) {
+    popup.setHTML(popupContent);
+  }
+  
+  // Update stored person data
+  markerItem.person = person;
+  
+  // Update marker text if name changed
+  const markerElement = markerItem.marker.getElement();
+  if (markerElement && markerElement.textContent !== person.name) {
+    const name = person.name || 'Unknown';
+    const nameLength = name.length;
+    const markerWidth = Math.min(Math.max(nameLength * 4.5 + 12, 40), 110);
+    markerElement.textContent = name;
+    markerElement.style.width = `${markerWidth}px`;
+    markerElement.title = `${name} (ID: ${person.id || 'N/A'})`;
   }
 }
 
@@ -561,7 +659,7 @@ function displayApiResponse(rawResponse, processedData) {
       <span style="color: ${hasError ? '#d32f2f' : '#2e7d32'};">Status: ${status}</span> | 
       Items: <strong>${count}</strong> | 
       Last Update: <strong>${timestamp}</strong> | 
-      Refresh: <strong>24 hours</strong>
+      Refresh: <strong>5 seconds</strong>
     `;
   }
   
@@ -584,8 +682,8 @@ function displayApiResponse(rawResponse, processedData) {
       processedData: processedData,
       count: count
     },
-    refreshInterval: '24 hours',
-    nextUpdate: new Date(Date.now() + 86400000).toLocaleTimeString()
+    refreshInterval: '5 seconds',
+    nextUpdate: new Date(Date.now() + 5000).toLocaleTimeString()
   };
   
   content.textContent = JSON.stringify(responseInfo, null, 2);
@@ -606,6 +704,9 @@ function stopPeopleTracker() {
     updateInterval = null;
   }
   clearPeopleMarkers();
+  
+  // Reset initial load flag
+  isInitialLoad = true;
   
   // Remove API response display
   const displayDiv = document.getElementById('api-response-display');
