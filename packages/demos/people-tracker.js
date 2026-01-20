@@ -98,6 +98,11 @@ async function fetchPeopleLocations() {
   } catch (error) {
     console.error('Error fetching people locations:', error);
     console.error('Error details:', error.message, error.stack);
+    
+    // Show error in display
+    showApiStatus(`Error: ${error.message}`, 'error');
+    displayApiResponse({ error: error.message, stack: error.stack }, []);
+    
     return [];
   }
 }
@@ -107,14 +112,21 @@ async function fetchPeopleLocations() {
  */
 async function loadPeopleLocations() {
   console.log('Loading people locations...');
+  
+  // Show loading indicator
+  showApiStatus('Loading...', 'info');
+  
   const people = await fetchPeopleLocations();
   
   console.log('Received people data:', people);
   
   if (!people || people.length === 0) {
     console.warn('No people data received or empty array');
+    showApiStatus('No data received', 'warning');
     return;
   }
+  
+  showApiStatus(`Loaded ${people.length} people`, 'success');
   
   // Remove existing markers
   clearPeopleMarkers();
@@ -277,6 +289,49 @@ function clearPeopleMarkers() {
  * @param {object} rawResponse - Raw API response
  * @param {Array} processedData - Processed people array
  */
+/**
+ * Show API status indicator
+ */
+function showApiStatus(message, type = 'info') {
+  let statusDiv = document.getElementById('api-status-indicator');
+  if (!statusDiv) {
+    statusDiv = document.createElement('div');
+    statusDiv.id = 'api-status-indicator';
+    statusDiv.style.cssText = `
+      position: fixed;
+      bottom: 420px;
+      right: 10px;
+      background: white;
+      border: 2px solid #4285f4;
+      border-radius: 8px;
+      padding: 8px 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+      z-index: 10001;
+      font-size: 12px;
+      font-weight: bold;
+    `;
+    document.body.appendChild(statusDiv);
+  }
+  
+  const colors = {
+    info: '#4285f4',
+    success: '#34a853',
+    warning: '#fbbc04',
+    error: '#ea4335'
+  };
+  
+  statusDiv.style.borderColor = colors[type] || colors.info;
+  statusDiv.style.color = colors[type] || colors.info;
+  statusDiv.textContent = `API: ${message}`;
+  
+  // Auto-hide after 3 seconds for success/info
+  if (type === 'success' || type === 'info') {
+    setTimeout(() => {
+      if (statusDiv) statusDiv.style.opacity = '0.5';
+    }, 3000);
+  }
+}
+
 function displayApiResponse(rawResponse, processedData) {
   // Remove existing display if any
   let displayDiv = document.getElementById('api-response-display');
@@ -287,39 +342,53 @@ function displayApiResponse(rawResponse, processedData) {
       position: fixed;
       bottom: 10px;
       right: 10px;
-      width: 400px;
-      max-height: 300px;
+      width: 450px;
+      max-height: 400px;
       background: white;
-      border: 2px solid #4285f4;
+      border: 3px solid #4285f4;
       border-radius: 8px;
-      padding: 12px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      padding: 16px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.4);
       z-index: 10000;
-      font-family: monospace;
-      font-size: 11px;
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
       overflow-y: auto;
-      display: none;
+      display: block;
     `;
     
     const header = document.createElement('div');
-    header.style.cssText = 'font-weight: bold; margin-bottom: 8px; color: #4285f4; cursor: pointer;';
-    header.textContent = 'API Response (click to toggle)';
+    header.style.cssText = 'font-weight: bold; margin-bottom: 12px; color: #4285f4; cursor: pointer; font-size: 14px; padding: 8px; background: #f0f7ff; border-radius: 4px;';
+    header.textContent = '📡 API Response (click to collapse)';
     header.onclick = () => {
-      displayDiv.style.display = displayDiv.style.display === 'none' ? 'block' : 'none';
+      const isHidden = contentDiv.style.display === 'none';
+      contentDiv.style.display = isHidden ? 'block' : 'none';
+      header.textContent = isHidden ? '📡 API Response (click to collapse)' : '📡 API Response (click to expand)';
     };
     displayDiv.appendChild(header);
     
+    const contentDiv = document.createElement('div');
+    contentDiv.id = 'api-response-content-wrapper';
+    contentDiv.style.cssText = 'display: block;';
+    
     const content = document.createElement('pre');
     content.id = 'api-response-content';
-    content.style.cssText = 'margin: 0; white-space: pre-wrap; word-wrap: break-word;';
-    displayDiv.appendChild(content);
+    content.style.cssText = 'margin: 0; white-space: pre-wrap; word-wrap: break-word; background: #f8f9fa; padding: 12px; border-radius: 4px; border: 1px solid #e0e0e0; max-height: 320px; overflow-y: auto;';
+    contentDiv.appendChild(content);
+    displayDiv.appendChild(contentDiv);
     
     document.body.appendChild(displayDiv);
+    console.log('API Response display panel created');
   }
   
   const content = document.getElementById('api-response-content');
+  if (!content) {
+    console.error('API response content element not found');
+    return;
+  }
+  
   const responseInfo = {
     timestamp: new Date().toLocaleTimeString(),
+    apiUrl: 'https://dxpsn25dt0.execute-api.us-east-2.amazonaws.com/Prod/items',
     rawResponse: rawResponse,
     processedData: processedData,
     count: processedData ? processedData.length : 0
@@ -327,6 +396,8 @@ function displayApiResponse(rawResponse, processedData) {
   
   content.textContent = JSON.stringify(responseInfo, null, 2);
   displayDiv.style.display = 'block';
+  
+  console.log('API Response displayed:', responseInfo);
 }
 
 /**
