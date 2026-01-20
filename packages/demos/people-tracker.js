@@ -277,6 +277,22 @@ async function loadPeopleLocations() {
   console.log(`Marker summary: ${markersAdded} added, ${markersSkipped} skipped`);
   console.log(`Valid coordinates collected: ${validCoordinates.length}`);
   
+  // Log all names that were processed
+  const allNames = people
+    .filter(p => p.name)
+    .map(p => `${p.name} (${p.id || 'N/A'})`);
+  if (allNames.length > 0) {
+    console.log('📋 All people names from API:', allNames);
+    console.log('📋 Names summary:', {
+      total: allNames.length,
+      names: allNames,
+      initials: allNames.map(n => {
+        const name = n.split(' ')[0];
+        return name.split(' ').map(w => w[0]).join('').toUpperCase();
+      })
+    });
+  }
+  
   // Reposition map to show all people
   if (validCoordinates.length > 0 && mapboxInstance) {
     console.log('Repositioning map to show markers...');
@@ -377,25 +393,42 @@ function addPersonMarker(person) {
   // Create a custom HTML element for the marker
   const el = document.createElement('div');
   el.className = 'person-marker';
-  el.style.width = '32px';
-  el.style.height = '32px';
-  el.style.borderRadius = '50%';
+  
+  // Use full name instead of initials - adjust marker size to fit text
+  const name = person.name || 'Unknown';
+  const nameLength = name.length;
+  
+  // Calculate marker width based on name length (min 40px, max 110px) for minimal map placement
+  const markerWidth = Math.min(Math.max(nameLength * 4.5 + 12, 40), 110);
+  
+  el.style.width = `${markerWidth}px`;
+  el.style.minWidth = '40px';
+  el.style.height = 'auto';
+  el.style.minHeight = '18px';
+  el.style.padding = '2px 6px';
+  el.style.borderRadius = '10px'; // Rounded rectangle instead of circle
   el.style.backgroundColor = '#FF6B6B';
-  el.style.border = '3px solid white';
+  el.style.border = '1.5px solid white';
   el.style.cursor = 'pointer';
-  el.style.boxShadow = '0 2px 4px rgba(0,0,0,0.3)';
+  el.style.boxShadow = '0 1px 3px rgba(0,0,0,0.3)';
   el.style.display = 'flex';
   el.style.alignItems = 'center';
   el.style.justifyContent = 'center';
-  el.style.fontSize = '14px';
+  el.style.fontSize = '8px';
   el.style.fontWeight = 'bold';
   el.style.color = 'white';
+  el.style.textAlign = 'center';
+  el.style.whiteSpace = 'nowrap';
+  el.style.overflow = 'hidden';
+  el.style.textOverflow = 'ellipsis';
+  el.style.lineHeight = '1.0';
+  el.style.letterSpacing = '0px';
   
-  // Add person's initial as marker content
-  const name = person.name || 'Unknown';
-  const initials = name.split(' ').map(n => n[0]).join('').toUpperCase() || '?';
-  el.textContent = initials;
-  el.title = name;
+  // Display full name on marker
+  el.textContent = name;
+  el.title = `${name} (ID: ${person.id || 'N/A'})`; // Show ID in tooltip
+  
+  console.log(`Creating marker: Name="${name}", ID=${person.id}`);
   
   // Create Mapbox marker
   const floorText = person.floor !== undefined && person.floor !== null ? `Floor: ${person.floor}` : 'Floor: Unknown';
