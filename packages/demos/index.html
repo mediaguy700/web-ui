@@ -13,6 +13,24 @@
 </head>
 <body>
   <div id="map"></div>
+  <div class="panel">
+    <h3>Search Locations</h3>
+    <div id="search-ui">
+      <input type="text" id="search-input" placeholder="Search locations...">
+      <ul id="search-results"></ul>
+    </div>
+    <div id="directions-ui">
+      <h4>Directions</h4>
+      <input type="text" id="origin-input" placeholder="Enter origin...">
+      <ul id="origin-results"></ul>
+      <input type="text" id="destination-input" placeholder="Enter destination...">
+      <ul id="destination-results"></ul>
+      <div class="button-group">
+        <button id="show-route">Show Route</button>
+        <button id="cancel-route">Cancel</button>
+      </div>
+    </div>
+  </div>
   <script src="people-tracker.js"></script>
   <script src="main.js"></script>
 </body>

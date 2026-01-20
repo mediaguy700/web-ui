@@ -87,6 +87,17 @@ function initApp() {
     
     // Wait a bit for the venue to be set
     setTimeout(() => {
+      // Initialize Directions Service
+      const directionsService = new mapsindoors.services.DirectionsService(
+        new mapsindoors.directions.MapboxProvider(MAPBOX_ACCESS_TOKEN)
+      );
+
+      // Setup search functionality
+      setupSearch();
+
+      // Setup directions functionality
+      setupDirections(directionsService);
+
       // Initialize people tracking (display people from database)
       if (typeof initPeopleTracker === 'function') {
         initPeopleTracker(mapboxInstance);
