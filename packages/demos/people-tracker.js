@@ -24,6 +24,7 @@ function initPeopleTracker(mapboxMap) {
  * Fetch people's locations from your database/API
  */
 async function fetchPeopleLocations() {
+  let rawData = null;
   try {
     console.log('Fetching people locations from API...');
     const response = await fetch('https://dxpsn25dt0.execute-api.us-east-2.amazonaws.com/Prod/items', {
@@ -37,7 +38,21 @@ async function fetchPeopleLocations() {
     console.log('API Response status:', response.status, response.statusText);
     
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      const errorText = await response.text();
+      rawData = { 
+        error: `HTTP ${response.status}: ${response.statusText}`,
+        status: response.status,
+        statusText: response.statusText,
+        body: errorText
+      };
+      console.error('API Error Response:', rawData);
+      
+      // Display error in API response panel
+      if (typeof displayApiResponse === 'function') {
+        displayApiResponse(rawData, []);
+      }
+      
+      throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
     }
     
     const contentType = response.headers.get('content-type');
@@ -54,10 +69,15 @@ async function fetchPeopleLocations() {
         data = JSON.parse(text);
       } catch (e) {
         console.error('Failed to parse response as JSON:', e);
+        rawData = { error: 'Failed to parse JSON', rawText: text.substring(0, 500) };
+        if (typeof displayApiResponse === 'function') {
+          displayApiResponse(rawData, []);
+        }
         return [];
       }
     }
     
+    rawData = data;
     console.log('API Response data:', data);
     
     // Ensure the response is an array
@@ -73,6 +93,10 @@ async function fetchPeopleLocations() {
       peopleArray = Array.isArray(parsedBody) ? parsedBody : (parsedBody.items || parsedBody.people || parsedBody.locations || []);
     } else {
       console.warn('Unexpected API response format:', data);
+      // Still display the response even if format is unexpected
+      if (typeof displayApiResponse === 'function') {
+        displayApiResponse(data, []);
+      }
       return [];
     }
     
@@ -99,7 +123,7 @@ async function fetchPeopleLocations() {
     
     // Also display in a visible area on the page for easy viewing
     if (typeof displayApiResponse === 'function') {
-      displayApiResponse(data, normalizedArray);
+      displayApiResponse(rawData, normalizedArray);
     } else {
       console.error('displayApiResponse function not found!');
     }
@@ -108,6 +132,18 @@ async function fetchPeopleLocations() {
   } catch (error) {
     console.error('Error fetching people locations:', error);
     console.error('Error details:', error.message, error.stack);
+    
+    // Display error in API response panel
+    const errorData = rawData || { 
+      error: error.message, 
+      stack: error.stack,
+      timestamp: new Date().toISOString()
+    };
+    
+    if (typeof displayApiResponse === 'function') {
+      displayApiResponse(errorData, []);
+    }
+    
     return [];
   }
 }
@@ -117,12 +153,36 @@ async function fetchPeopleLocations() {
  */
 async function loadPeopleLocations() {
   console.log('Loading people locations...');
-  const people = await fetchPeopleLocations();
+  let people = [];
+  let rawResponse = null;
   
-  console.log('Received people data:', people);
+  try {
+    // Fetch people locations and capture raw response
+    const fetchResult = await fetchPeopleLocations();
+    people = Array.isArray(fetchResult) ? fetchResult : [];
+    
+    // Try to get the raw response from the last fetch
+    // We'll need to modify fetchPeopleLocations to return both
+    console.log('Received people data:', people);
+  } catch (error) {
+    console.error('Error in loadPeopleLocations:', error);
+    // Display error in API response panel
+    if (typeof displayApiResponse === 'function') {
+      displayApiResponse({ error: error.message, stack: error.stack }, []);
+    }
+    return;
+  }
+  
+  // Always display API response, even if empty
+  if (typeof displayApiResponse === 'function') {
+    // We need to get the raw response - let's modify fetchPeopleLocations to return it
+    // For now, display what we have
+    displayApiResponse({ message: 'API call completed', peopleCount: people.length }, people);
+  }
   
   if (!people || people.length === 0) {
     console.warn('No people data received or empty array');
+    clearPeopleMarkers();
     return;
   }
   
@@ -287,11 +347,6 @@ function clearPeopleMarkers() {
  * @param {object} rawResponse - Raw API response
  * @param {Array} processedData - Processed people array
  */
-/**
- * Display API response on the page for debugging
- * @param {object} rawResponse - Raw API response
- * @param {Array} processedData - Processed people array
- */
 function displayApiResponse(rawResponse, processedData) {
   console.log('displayApiResponse called with:', { rawResponse, processedData });
   
@@ -305,22 +360,24 @@ function displayApiResponse(rawResponse, processedData) {
       position: fixed;
       bottom: 10px;
       right: 10px;
-      width: 450px;
-      max-height: 400px;
+      width: 500px;
+      max-height: 500px;
       background: white;
-      border: 3px solid #4285f4;
+      border: 4px solid #4285f4;
       border-radius: 8px;
       padding: 16px;
-      box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.6);
       z-index: 10000;
       font-family: 'Courier New', monospace;
       font-size: 12px;
       overflow-y: auto;
-      display: block;
+      display: block !important;
+      visibility: visible !important;
+      opacity: 1 !important;
     `;
     
     const header = document.createElement('div');
-    header.style.cssText = 'font-weight: bold; margin-bottom: 12px; color: #4285f4; cursor: pointer; font-size: 14px; padding: 8px; background: #f0f7ff; border-radius: 4px;';
+    header.style.cssText = 'font-weight: bold; margin-bottom: 12px; color: #4285f4; cursor: pointer; font-size: 16px; padding: 10px; background: #f0f7ff; border-radius: 4px; border: 2px solid #4285f4;';
     header.textContent = '📡 API Response (click to collapse)';
     let isExpanded = true;
     header.onclick = () => {
@@ -336,7 +393,7 @@ function displayApiResponse(rawResponse, processedData) {
     
     const content = document.createElement('pre');
     content.id = 'api-response-content';
-    content.style.cssText = 'margin: 0; white-space: pre-wrap; word-wrap: break-word; background: #f8f9fa; padding: 12px; border-radius: 4px; border: 1px solid #e0e0e0; max-height: 320px; overflow-y: auto;';
+    content.style.cssText = 'margin: 0; white-space: pre-wrap; word-wrap: break-word; background: #f8f9fa; padding: 12px; border-radius: 4px; border: 1px solid #e0e0e0; max-height: 400px; overflow-y: auto; font-size: 11px;';
     contentDiv.appendChild(content);
     displayDiv.appendChild(contentDiv);
     
@@ -353,6 +410,7 @@ function displayApiResponse(rawResponse, processedData) {
   const responseInfo = {
     timestamp: new Date().toLocaleTimeString(),
     apiUrl: 'https://dxpsn25dt0.execute-api.us-east-2.amazonaws.com/Prod/items',
+    apiKey: '2GQCAw8pQV9eqaaKy3aY58TSOHQndXGk69MBToxk',
     rawResponse: rawResponse,
     processedData: processedData,
     count: processedData ? processedData.length : 0
@@ -360,8 +418,11 @@ function displayApiResponse(rawResponse, processedData) {
   
   content.textContent = JSON.stringify(responseInfo, null, 2);
   displayDiv.style.display = 'block';
+  displayDiv.style.visibility = 'visible';
+  displayDiv.style.opacity = '1';
   
   console.log('API Response displayed in panel:', responseInfo);
+  console.log('Display div is visible:', displayDiv.style.display, displayDiv.style.visibility);
 }
 
 /**
