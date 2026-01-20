@@ -22,7 +22,10 @@ html, body {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   overflow-y: auto;
   z-index: 1000;
-  display: none; /* Hidden but functionality remains */
+  display: none !important; /* Hidden but functionality remains */
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
 }
 
 .panel h3 {
