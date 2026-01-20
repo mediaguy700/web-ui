@@ -12,10 +12,6 @@ const MAPBOX_ACCESS_TOKEN = 'pk.eyJ1IjoianByaWNlNjc5MSIsImEiOiJjbWtqNWo3OHoxMnI5
 
 // Initialize the application when both SDKs are ready
 function initApp() {
-  console.log('initApp called. Checking SDKs...');
-  console.log('mapsindoors:', typeof mapsindoors);
-  console.log('mapboxgl:', typeof mapboxgl);
-  
   if (typeof mapsindoors === 'undefined' || typeof mapboxgl === 'undefined') {
     console.log('Waiting for SDKs to load...');
     setTimeout(initApp, 100);
@@ -23,13 +19,6 @@ function initApp() {
   }
 
   console.log('Initializing MapsIndoors...');
-  
-  const mapElement = document.getElementById('map');
-  if (!mapElement) {
-    console.error('Map element not found!');
-    return;
-  }
-  console.log('Map element found:', mapElement);
 
   // Initialize Map View (Mapbox)
   const mapViewOptions = {
@@ -359,13 +348,5 @@ function setupDirections(directionsService) {
   });
 }
 
-// Start the application when DOM is ready
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', () => {
-    console.log('DOM loaded, starting app...');
-    initApp();
-  });
-} else {
-  console.log('DOM already loaded, starting app...');
-  initApp();
-}
+// Start the application
+initApp();

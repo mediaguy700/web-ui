@@ -26,7 +26,13 @@ function initPeopleTracker(mapboxMap) {
 async function fetchPeopleLocations() {
   try {
     console.log('Fetching people locations from API...');
-    const response = await fetch('https://dxpsn25dt0.execute-api.us-east-2.amazonaws.com/Prod/items');
+    const response = await fetch('https://dxpsn25dt0.execute-api.us-east-2.amazonaws.com/Prod/items', {
+      method: 'GET',
+      headers: {
+        'x-api-key': '2GQCAw8pQV9eqaaKy3aY58TSOHQndXGk69MBToxk',
+        'Content-Type': 'application/json'
+      }
+    });
     
     console.log('API Response status:', response.status, response.statusText);
     
