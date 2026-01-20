@@ -480,14 +480,20 @@ function displayApiResponse(rawResponse, processedData) {
     
     const header = document.createElement('div');
     header.style.cssText = 'font-weight: bold; margin-bottom: 12px; color: #4285f4; cursor: pointer; font-size: 16px; padding: 10px; background: #f0f7ff; border-radius: 4px; border: 2px solid #4285f4;';
-    header.textContent = '📡 API Response (click to collapse)';
+    header.innerHTML = '📡 API Details (click to collapse)';
     let isExpanded = true;
     header.onclick = () => {
       isExpanded = !isExpanded;
       contentDiv.style.display = isExpanded ? 'block' : 'none';
-      header.textContent = isExpanded ? '📡 API Response (click to collapse)' : '📡 API Response (click to expand)';
+      header.innerHTML = isExpanded ? '📡 API Details (click to collapse)' : '📡 API Details (click to expand)';
     };
     displayDiv.appendChild(header);
+    
+    // Add summary section
+    const summaryDiv = document.createElement('div');
+    summaryDiv.id = 'api-summary';
+    summaryDiv.style.cssText = 'margin-bottom: 12px; padding: 10px; background: #e8f4f8; border-radius: 4px; border: 1px solid #4285f4; font-size: 11px;';
+    displayDiv.appendChild(summaryDiv);
     
     const contentDiv = document.createElement('div');
     contentDiv.id = 'api-response-content-wrapper';
@@ -509,13 +515,44 @@ function displayApiResponse(rawResponse, processedData) {
     return;
   }
   
+  const summaryDiv = document.getElementById('api-summary');
+  const count = processedData ? processedData.length : 0;
+  const timestamp = new Date().toLocaleTimeString();
+  const hasError = rawResponse?.error ? true : false;
+  const status = rawResponse?.status || rawResponse?.statusCode || 'OK';
+  
+  // Update summary
+  if (summaryDiv) {
+    summaryDiv.innerHTML = `
+      <strong>API Summary:</strong><br>
+      <span style="color: ${hasError ? '#d32f2f' : '#2e7d32'};">Status: ${status}</span> | 
+      Items: <strong>${count}</strong> | 
+      Last Update: <strong>${timestamp}</strong> | 
+      Refresh: <strong>3 seconds</strong>
+    `;
+  }
+  
   const responseInfo = {
-    timestamp: new Date().toLocaleTimeString(),
-    apiUrl: 'https://dxpsn25dt0.execute-api.us-east-2.amazonaws.com/Prod/items',
-    apiKey: '2GQCAw8pQV9eqaaKy3aY58TSOHQndXGk69MBToxk',
-    rawResponse: rawResponse,
-    processedData: processedData,
-    count: processedData ? processedData.length : 0
+    request: {
+      method: 'GET',
+      url: 'https://dxpsn25dt0.execute-api.us-east-2.amazonaws.com/Prod/items',
+      headers: {
+        'x-api-key': '2GQCAw8pQV9eqaaKy3aY58TSOHQndXGk69MBToxk',
+        'Content-Type': 'application/json'
+      }
+    },
+    response: {
+      timestamp: timestamp,
+      date: new Date().toLocaleDateString(),
+      status: status,
+      hasError: hasError,
+      error: rawResponse?.error || null,
+      rawResponse: rawResponse,
+      processedData: processedData,
+      count: count
+    },
+    refreshInterval: '3 seconds',
+    nextUpdate: new Date(Date.now() + 3000).toLocaleTimeString()
   };
   
   content.textContent = JSON.stringify(responseInfo, null, 2);
