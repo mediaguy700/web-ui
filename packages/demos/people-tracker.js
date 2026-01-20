@@ -22,51 +22,61 @@ function initPeopleTracker(mapboxMap) {
 
 /**
  * Fetch people's locations from your database/API
- * Replace this with your actual API endpoint
  */
 async function fetchPeopleLocations() {
   try {
-    // TODO: Replace this with your actual API endpoint
-    // Example: const response = await fetch('https://your-api.com/api/people/locations');
-    // const data = await response.json();
-    // return data;
+    console.log('Fetching people locations from API...');
+    const response = await fetch('https://dxpsn25dt0.execute-api.us-east-2.amazonaws.com/Prod/');
     
-    // Mock data for demonstration - replace with real API call
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve([
-          {
-            id: '1',
-            name: 'John Doe',
-            lat: 33.1847,
-            lng: -96.9067,
-            floor: 0,
-            timestamp: new Date().toISOString(),
-            status: 'active'
-          },
-          {
-            id: '2',
-            name: 'Jane Smith',
-            lat: 33.1850,
-            lng: -96.9070,
-            floor: 1,
-            timestamp: new Date().toISOString(),
-            status: 'active'
-          },
-          {
-            id: '3',
-            name: 'Bob Johnson',
-            lat: 33.1844,
-            lng: -96.9064,
-            floor: 0,
-            timestamp: new Date().toISOString(),
-            status: 'active'
-          }
-        ]);
-      }, 500);
-    });
+    console.log('API Response status:', response.status, response.statusText);
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    const contentType = response.headers.get('content-type');
+    console.log('Response content-type:', contentType);
+    
+    let data;
+    if (contentType && contentType.includes('application/json')) {
+      data = await response.json();
+    } else {
+      // Try to parse as JSON anyway
+      const text = await response.text();
+      console.log('Response text:', text.substring(0, 200));
+      try {
+        data = JSON.parse(text);
+      } catch (e) {
+        console.error('Failed to parse response as JSON:', e);
+        return [];
+      }
+    }
+    
+    console.log('API Response data:', data);
+    
+    // Ensure the response is an array
+    let peopleArray = [];
+    if (Array.isArray(data)) {
+      peopleArray = data;
+    } else if (data.items || data.people || data.locations) {
+      // Handle different response structures
+      peopleArray = data.items || data.people || data.locations || [];
+    } else if (data.body) {
+      // Handle AWS Lambda response format
+      const parsedBody = typeof data.body === 'string' ? JSON.parse(data.body) : data.body;
+      peopleArray = Array.isArray(parsedBody) ? parsedBody : (parsedBody.items || parsedBody.people || parsedBody.locations || []);
+    } else {
+      console.warn('Unexpected API response format:', data);
+      return [];
+    }
+    
+    console.log('Processed people array:', peopleArray);
+    console.log('Number of people found:', peopleArray.length);
+    
+    return peopleArray;
   } catch (error) {
     console.error('Error fetching people locations:', error);
+    console.error('Error details:', error.message, error.stack);
     return [];
   }
 }
@@ -75,15 +85,81 @@ async function fetchPeopleLocations() {
  * Load and display people's locations on the map
  */
 async function loadPeopleLocations() {
+  console.log('Loading people locations...');
   const people = await fetchPeopleLocations();
+  
+  console.log('Received people data:', people);
+  
+  if (!people || people.length === 0) {
+    console.warn('No people data received or empty array');
+    return;
+  }
   
   // Remove existing markers
   clearPeopleMarkers();
   
+  // Collect valid coordinates for bounds calculation
+  const validCoordinates = [];
+  
   // Add new markers for each person
+  let markersAdded = 0;
   people.forEach(person => {
-    addPersonMarker(person);
+    try {
+      addPersonMarker(person);
+      markersAdded++;
+      
+      // Collect coordinates for bounds calculation
+      if (typeof person.lat === 'number' && typeof person.lng === 'number') {
+        validCoordinates.push([person.lng, person.lat]);
+      }
+    } catch (error) {
+      console.error('Error adding marker for person:', person, error);
+    }
   });
+  
+  console.log(`Successfully added ${markersAdded} markers to the map`);
+  
+  // Reposition map to show all people
+  if (validCoordinates.length > 0 && mapboxInstance) {
+    repositionMapToShowPeople(validCoordinates);
+  }
+}
+
+/**
+ * Reposition the map to show all people locations
+ * @param {Array} coordinates - Array of [lng, lat] coordinate pairs
+ */
+function repositionMapToShowPeople(coordinates) {
+  if (!mapboxInstance || !coordinates || coordinates.length === 0) {
+    return;
+  }
+  
+  try {
+    if (coordinates.length === 1) {
+      // Single location - center on it with a reasonable zoom
+      const [lng, lat] = coordinates[0];
+      mapboxInstance.flyTo({
+        center: [lng, lat],
+        zoom: 17,
+        duration: 1000
+      });
+      console.log('Repositioned map to single location:', lat, lng);
+    } else {
+      // Multiple locations - fit bounds to show all
+      const bounds = coordinates.reduce((bounds, coord) => {
+        return bounds.extend(coord);
+      }, new mapboxgl.LngLatBounds(coordinates[0], coordinates[0]));
+      
+      mapboxInstance.fitBounds(bounds, {
+        padding: { top: 50, bottom: 50, left: 50, right: 50 },
+        duration: 1000,
+        maxZoom: 20
+      });
+      console.log('Repositioned map to fit bounds for', coordinates.length, 'locations');
+    }
+  } catch (error) {
+    console.error('Error repositioning map:', error);
+  }
 }
 
 /**
@@ -91,7 +167,26 @@ async function loadPeopleLocations() {
  * @param {object} person - Person object with id, name, lat, lng, floor, etc.
  */
 function addPersonMarker(person) {
-  if (!mapboxInstance) return;
+  if (!mapboxInstance) {
+    console.error('Mapbox instance not available, cannot add marker');
+    return;
+  }
+  
+  // Validate required fields
+  if (!person.id || !person.name || typeof person.lat !== 'number' || typeof person.lng !== 'number') {
+    console.warn('Invalid person data, skipping marker:', person);
+    console.warn('Required fields check:', {
+      hasId: !!person.id,
+      hasName: !!person.name,
+      hasLat: typeof person.lat === 'number',
+      hasLng: typeof person.lng === 'number',
+      lat: person.lat,
+      lng: person.lng
+    });
+    return;
+  }
+  
+  console.log('Adding marker for person:', person.name, 'at', person.lat, person.lng);
   
   // Create a custom HTML element for the marker
   const el = document.createElement('div');
@@ -111,23 +206,30 @@ function addPersonMarker(person) {
   el.style.color = 'white';
   
   // Add person's initial as marker content
-  const initials = person.name.split(' ').map(n => n[0]).join('').toUpperCase();
+  const name = person.name || 'Unknown';
+  const initials = name.split(' ').map(n => n[0]).join('').toUpperCase() || '?';
   el.textContent = initials;
-  el.title = person.name;
+  el.title = name;
   
   // Create Mapbox marker
+  const floorText = person.floor !== undefined && person.floor !== null ? `Floor: ${person.floor}` : 'Floor: Unknown';
+  const statusText = person.status ? `Status: ${person.status}` : '';
+  const timestampText = person.timestamp ? `Last updated: ${new Date(person.timestamp).toLocaleTimeString()}` : '';
+  
+  const popupContent = `
+    <div style="padding: 8px;">
+      <strong>${person.name || 'Unknown'}</strong><br>
+      ${floorText ? `<small>${floorText}</small><br>` : ''}
+      ${statusText ? `<small>${statusText}</small><br>` : ''}
+      ${timestampText ? `<small>${timestampText}</small>` : ''}
+    </div>
+  `;
+  
   const marker = new mapboxgl.Marker(el)
     .setLngLat([person.lng, person.lat])
     .setPopup(
       new mapboxgl.Popup({ offset: 25 })
-        .setHTML(`
-          <div style="padding: 8px;">
-            <strong>${person.name}</strong><br>
-            <small>Floor: ${person.floor}</small><br>
-            <small>Status: ${person.status}</small><br>
-            <small>Last updated: ${new Date(person.timestamp).toLocaleTimeString()}</small>
-          </div>
-        `)
+        .setHTML(popupContent)
     )
     .addTo(mapboxInstance);
   

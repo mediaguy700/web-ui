@@ -156,47 +156,69 @@ const result = await directionsService.getRoute({
 - Check that both origin and destination locations are selected
 - Verify the locations are in the same building/venue
 
-## Connecting to Your Database
+## People Location API Integration
 
-To display real people's locations from your database:
+The people tracking feature is integrated with the API endpoint:
+```
+https://dxpsn25dt0.execute-api.us-east-2.amazonaws.com/Prod/
+```
 
-1. **Update the API endpoint** in `people-tracker.js`:
-   ```javascript
-   async function fetchPeopleLocations() {
-     try {
-       const response = await fetch('https://your-api.com/api/people/locations');
-       const data = await response.json();
-       return data;
-     } catch (error) {
-       console.error('Error fetching people locations:', error);
-       return [];
-     }
-   }
-   ```
+### API Response Format
 
-2. **Ensure your API returns data in this format**:
-   ```json
-   [
-     {
-       "id": "1",
-       "name": "John Doe",
-       "lat": 38.8975,
-       "lng": -77.0363,
-       "floor": 0,
-       "timestamp": "2024-01-01T12:00:00Z",
-       "status": "active"
-     }
-   ]
-   ```
+The API should return data in one of these formats:
 
-3. **Adjust update frequency** by changing the interval in `initPeopleTracker()`:
-   ```javascript
-   updateInterval = setInterval(() => {
-     loadPeopleLocations();
-   }, 5000); // Update every 5 seconds
-   ```
+**Direct array (preferred):**
+```json
+[
+  {
+    "id": "1",
+    "name": "John Doe",
+    "lat": 33.1847,
+    "lng": -96.9067,
+    "floor": 0,
+    "timestamp": "2024-01-18T12:00:00Z",
+    "status": "active"
+  }
+]
+```
 
-4. **Customize marker appearance** in the `addPersonMarker()` function in `people-tracker.js`
+**Wrapped in object:**
+```json
+{
+  "items": [...],
+  "people": [...],
+  "locations": [...]
+}
+```
+
+**AWS Lambda format:**
+```json
+{
+  "body": "[{...}]" // JSON string
+}
+```
+
+### Required Fields
+
+- `id` (string/number) - Unique identifier
+- `name` (string) - Person's name
+- `lat` (number) - Latitude coordinate
+- `lng` (number) - Longitude coordinate
+
+### Optional Fields
+
+- `floor` (number/string) - Floor number
+- `timestamp` (string) - ISO 8601 timestamp
+- `status` (string) - Person's status
+
+### Update Frequency
+
+The map automatically refreshes people locations every 4 seconds. To change this, edit the interval in `people-tracker.js`:
+```javascript
+updateInterval = setInterval(() => {
+  loadPeopleLocations();
+}, 4000); // Update every 4 seconds
+```
 
 ## Next Steps
 
