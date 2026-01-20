@@ -354,6 +354,10 @@ function setupPanelToggle() {
   const panel = document.getElementById('control-panel');
   
   if (toggleButton && panel) {
+    // Set initial state - panel is visible, so show close icon
+    toggleButton.textContent = '✕';
+    toggleButton.title = 'Hide panel';
+    
     toggleButton.addEventListener('click', () => {
       panel.classList.toggle('hidden');
       // Update button text/icon based on state
