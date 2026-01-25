@@ -37,6 +37,14 @@ allprojects {
                 password = project.findProperty('MAPBOX_DOWNLOADS_TOKEN') ?: System.getenv('MAPBOX_DOWNLOADS_TOKEN') ?: ''
             }
         }
+        // MapsIndoors Maven repository
+        maven {
+            url 'https://maven.mapsindoors.com/'
+        }
+        // Sonatype snapshots (for MapsIndoors snapshots)
+        maven {
+            url 'https://oss.sonatype.org/content/repositories/snapshots/'
+        }
     }
     
     configurations.all {
