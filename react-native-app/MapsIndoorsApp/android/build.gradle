@@ -23,6 +23,22 @@ buildscript {
 }
 
 allprojects {
+    repositories {
+        google()
+        mavenCentral()
+        maven { url 'https://www.jitpack.io' }
+        maven {
+            url 'https://api.mapbox.com/downloads/v2/releases/maven'
+            authentication {
+                basic(BasicAuthentication)
+            }
+            credentials {
+                username = 'mapbox'
+                password = project.findProperty('MAPBOX_DOWNLOADS_TOKEN') ?: System.getenv('MAPBOX_DOWNLOADS_TOKEN') ?: ''
+            }
+        }
+    }
+    
     configurations.all {
         resolutionStrategy {
             // Force all Kotlin dependencies to use 1.7.20 to match Gradle 7.6.3
