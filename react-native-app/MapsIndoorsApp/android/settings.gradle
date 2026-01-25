@@ -2,8 +2,3 @@ rootProject.name = 'MapsIndoorsApp'
 apply from: file("../node_modules/@react-native-community/cli-platform-android/native_modules.gradle"); applyNativeModulesSettingsGradle(settings)
 include ':app'
 includeBuild('../node_modules/@react-native/gradle-plugin')
-
-// Fix Kotlin version compatibility
-gradle.beforeProject { project ->
-    project.ext.kotlinVersion = "1.9.0"
-}

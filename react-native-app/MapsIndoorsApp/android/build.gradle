@@ -6,7 +6,7 @@ buildscript {
         minSdkVersion = 21
         compileSdkVersion = 33
         targetSdkVersion = 33
-        kotlinVersion = "1.8.22"
+        kotlinVersion = "1.9.0"
 
         // We use NDK 23 which has both M1 support and is the side-by-side NDK version from AGP.
         ndkVersion = "23.1.7779620"
@@ -25,9 +25,14 @@ buildscript {
 allprojects {
     configurations.all {
         resolutionStrategy {
+            // Force all Kotlin dependencies to use 1.9.0 to match Gradle 8.5
             force("org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion")
             force("org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlinVersion")
             force("org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlinVersion")
+            force("org.jetbrains.kotlin:kotlin-stdlib-common:$kotlinVersion")
+            // Also force Kotlin compiler and reflect versions
+            force("org.jetbrains.kotlin:kotlin-compiler:$kotlinVersion")
+            force("org.jetbrains.kotlin:kotlin-reflect:$kotlinVersion")
         }
     }
 }
