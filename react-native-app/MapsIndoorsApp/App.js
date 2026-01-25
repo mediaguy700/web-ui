@@ -1,7 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { View, StyleSheet, StatusBar, Text, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
 import { MapsIndoorsMap } from '@mapsindoors/react-native-maps-indoors-mapbox';
-import { Marker } from '@react-native-mapbox/maps';
 import PeopleTracker from './src/components/PeopleTracker';
 
 // Configuration - same as web version

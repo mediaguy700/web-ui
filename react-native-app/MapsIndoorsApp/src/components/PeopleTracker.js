@@ -1,6 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
-import { Marker } from '@react-native-mapbox/maps';
 
 // API Configuration - same as web version
 const API_URL = 'https://dxpsn25dt0.execute-api.us-east-2.amazonaws.com/Prod/items';
@@ -240,34 +239,30 @@ export default function PeopleTracker({ mapsIndoorsInstance }) {
     }
   };
 
+  // Use MapsIndoors SDK to add markers programmatically
+  useEffect(() => {
+    if (!mapsIndoorsInstance || people.length === 0) return;
+
+    // Note: This is a placeholder - you'll need to use MapsIndoors SDK's marker API
+    // The exact API depends on the MapsIndoors React Native SDK version
+    // For now, we'll log the people data - markers can be added using:
+    // mapsIndoorsInstance.addMarker() or similar method based on SDK documentation
+    console.log('People to display as markers:', people);
+    
+    // TODO: Add markers using MapsIndoors SDK API
+    // Example (adjust based on actual SDK):
+    // people.forEach(person => {
+    //   mapsIndoorsInstance.addMarker({
+    //     id: person.id,
+    //     position: { lat: person.lat, lng: person.lng },
+    //     title: person.name,
+    //     // ... other options
+    //   });
+    // });
+  }, [people, mapsIndoorsInstance]);
+
   return (
     <>
-      {/* People Markers */}
-      {people.map((person) => {
-        if (
-          typeof person.lat !== 'number' ||
-          typeof person.lng !== 'number' ||
-          isNaN(person.lat) ||
-          isNaN(person.lng)
-        ) {
-          return null;
-        }
-
-        return (
-          <Marker
-            key={person.id}
-            coordinate={[person.lng, person.lat]}
-            title={person.name}
-            description={`Floor: ${person.floor || 'Unknown'}\nStatus: ${person.status}`}
-          >
-            <View style={styles.marker}>
-              <Text style={styles.markerText} numberOfLines={1} ellipsizeMode="tail">
-                {person.name}
-              </Text>
-            </View>
-          </Marker>
-        );
-      })}
 
       {/* API Details Toggle Button */}
       <TouchableOpacity style={styles.apiButton} onPress={() => setShowApiDetails(!showApiDetails)}>
