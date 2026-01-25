@@ -17,6 +17,8 @@ buildscript {
     }
     dependencies {
         classpath("com.android.tools.build:gradle:7.4.2")
+        // React Native Gradle plugin is included via includeBuild in settings.gradle
+        // No version needed when using includeBuild
         classpath("com.facebook.react:react-native-gradle-plugin")
         classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion")
     }
@@ -34,7 +36,8 @@ allprojects {
             }
             credentials {
                 username = 'mapbox'
-                password = project.findProperty('MAPBOX_DOWNLOADS_TOKEN') ?: System.getenv('MAPBOX_DOWNLOADS_TOKEN') ?: ''
+                def token = project.findProperty('MAPBOX_DOWNLOADS_TOKEN') ?: System.getenv('MAPBOX_DOWNLOADS_TOKEN')
+                password = (token != null && token.toString().trim().length() > 0) ? token.toString() : ''
             }
         }
         // MapsIndoors Maven repository
@@ -54,6 +57,27 @@ allprojects {
             force("org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlinVersion")
             force("org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlinVersion")
             force("org.jetbrains.kotlin:kotlin-stdlib-common:$kotlinVersion")
+            
+            // Force appcompat to 1.6.1 (compatible with compileSdkVersion 33)
+            // appcompat 1.7.0 requires compileSdkVersion 34
+            force("androidx.appcompat:appcompat:1.6.1")
+            force("androidx.appcompat:appcompat-resources:1.6.1")
+            
+            // Force androidx.core to 1.12.0 (compatible with compileSdkVersion 34 and AGP 7.4.2)
+            // core 1.16.0 requires compileSdkVersion 35 and AGP 8.6.0
+            force("androidx.core:core:1.12.0")
+            force("androidx.core:core-ktx:1.12.0")
+            
+            // Force error_prone_annotations to older version to avoid D8 NullPointerException
+            // error_prone_annotations 2.38.0 triggers D8 4.0.52 bug
+            force("com.google.errorprone:error_prone_annotations:2.18.0")
+        }
+    }
+    
+    // Configure Kotlin JVM target for all subprojects
+    tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
+        kotlinOptions {
+            jvmTarget = "11"
         }
     }
 }

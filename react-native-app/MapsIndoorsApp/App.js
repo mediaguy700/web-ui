@@ -1,7 +1,9 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { View, StyleSheet, StatusBar, Text, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
-import { MapsIndoorsMap } from '@mapsindoors/react-native-maps-indoors-mapbox';
-import PeopleTracker from './src/components/PeopleTracker';
+import React, { useEffect, useState } from 'react';
+import { View, StyleSheet, StatusBar, Text, ActivityIndicator } from 'react-native';
+import MapView from '@mapsindoors/react-native-maps-indoors-mapbox';
+// Temporarily comment out MapsIndoors to test if it's causing the error
+// import MapsIndoors from '@mapsindoors/react-native-maps-indoors-mapbox';
+// import PeopleTracker from './src/components/PeopleTracker';
 
 // Configuration - same as web version
 const MAPBOX_ACCESS_TOKEN = 'pk.eyJ1IjoianByaWNlNjc5MSIsImEiOiJjbWtqNWo3OHoxMnI5M2NwbmlwM2locDhlIn0._L18RGG3ZVn-QeD6zs-MEQ';
@@ -12,41 +14,27 @@ const INITIAL_CENTER = { latitude: 33.1847, longitude: -96.9067 };
 const INITIAL_ZOOM = 17;
 
 export default function App() {
-  const [mapsIndoorsInstance, setMapsIndoorsInstance] = useState(null);
-  const [isReady, setIsReady] = useState(false);
-
-  const handleMapsIndoorsReady = (instance) => {
-    console.log('MapsIndoors is ready!');
-    setMapsIndoorsInstance(instance);
-    setIsReady(true);
-  };
+  // Temporarily disable MapsIndoors initialization to test if it's causing the error
+  const [isReady] = useState(true);
+  
+  console.log('Rendering App - Minimal version without MapsIndoors.load()');
 
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" />
       
-      {/* MapsIndoors Map */}
-      <MapsIndoorsMap
-        apiKey={MAPSINDOORS_API_KEY}
-        mapboxAccessToken={MAPBOX_ACCESS_TOKEN}
-        initialCenter={INITIAL_CENTER}
-        initialZoom={INITIAL_ZOOM}
-        onMapsIndoorsReady={handleMapsIndoorsReady}
+      {/* Debug: Show status */}
+      <View style={styles.debugContainer}>
+        <Text style={styles.debugText}>
+          Testing: MapView without MapsIndoors.load()
+        </Text>
+      </View>
+      
+      {/* MapsIndoors Map - Testing without MapsIndoors.load() */}
+      <MapView
         style={styles.map}
+        showCompass={true}
       />
-
-      {/* Loading indicator */}
-      {!isReady && (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#4285f4" />
-          <Text style={styles.loadingText}>Loading MapsIndoors...</Text>
-        </View>
-      )}
-
-      {/* People Tracker Component */}
-      {isReady && mapsIndoorsInstance && (
-        <PeopleTracker mapsIndoorsInstance={mapsIndoorsInstance} />
-      )}
     </View>
   );
 }
@@ -74,5 +62,20 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#4285f4',
     fontWeight: '500',
+  },
+  debugContainer: {
+    position: 'absolute',
+    top: 50,
+    left: 10,
+    right: 10,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    padding: 10,
+    borderRadius: 5,
+    zIndex: 1000,
+  },
+  debugText: {
+    color: 'white',
+    fontSize: 12,
+    fontFamily: 'monospace',
   },
 });
